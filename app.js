@@ -39,12 +39,12 @@ app.use(express.static(path.join(__dirname, 'public')));
  * Note - Rate Limiter can be applied to any individual API also. For more information
  * Please visit https://www.npmjs.com/package/express-rate-limit
  */
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-  })
-);
+// app.use(
+//   rateLimit({
+//     windowMs: 15 * 60 * 1000, // 15 minutes
+//     max: 100, // limit each IP to 100 requests per windowMs
+//   })
+// );
 
 // API Calling
 app.use('/api', require('./api'));

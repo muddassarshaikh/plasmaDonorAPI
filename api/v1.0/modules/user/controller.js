@@ -20,24 +20,6 @@ const controller = {
     }
   },
 
-  //Verify Email API
-  verifyEmail: async (req, res, next) => {
-    try {
-      const verificationDetails = await object
-        .userService()
-        .verifyEmail(res.locals.requestedData);
-      res.send(
-        functions.responseGenerator(
-          verificationDetails.statusCode,
-          verificationDetails.message,
-          verificationDetails.data
-        )
-      );
-    } catch (error) {
-      return next(error);
-    }
-  },
-
   //Login API
   login: async (req, res, next) => {
     try {
@@ -56,69 +38,12 @@ const controller = {
     }
   },
 
-  // Change Password API
-  changePassword: async (req, res, next) => {
-    try {
-      const changePasswordDetails = await object
-        .userService()
-        .changePassword(
-          res.locals.tokenInfo.emailAddress,
-          res.locals.requestedData
-        );
-      res.send(
-        functions.responseGenerator(
-          changePasswordDetails.statusCode,
-          changePasswordDetails.message,
-          changePasswordDetails.data
-        )
-      );
-    } catch (error) {
-      return next(error);
-    }
-  },
-
-  // Forgot Password API
-  forgotPassword: async (req, res, next) => {
-    try {
-      const forgotPasswordDetails = await object
-        .userService()
-        .forgotPassword(res.locals.requestedData);
-      res.send(
-        functions.responseGenerator(
-          forgotPasswordDetails.statusCode,
-          forgotPasswordDetails.message,
-          forgotPasswordDetails.data
-        )
-      );
-    } catch (error) {
-      return next(error);
-    }
-  },
-
-  // Reset Password API
-  resetPassword: async (req, res, next) => {
-    try {
-      const resetPasswordDetails = await object
-        .userService()
-        .resetPassword(res.locals.requestedData);
-      res.send(
-        functions.responseGenerator(
-          resetPasswordDetails.statusCode,
-          resetPasswordDetails.message,
-          resetPasswordDetails.data
-        )
-      );
-    } catch (error) {
-      return next(error);
-    }
-  },
-
   // Get Profile API
   getProfile: async (req, res, next) => {
     try {
       const userInformationDetails = await object
         .userService()
-        .getProfile(res.locals.tokenInfo.emailAddress);
+        .getProfile(res.locals.tokenInfo.email);
       res.send(
         functions.responseGenerator(
           userInformationDetails.statusCode,
@@ -136,10 +61,7 @@ const controller = {
     try {
       const updateProfileDetails = await object
         .userService()
-        .updateProfile(
-          res.locals.tokenInfo.emailAddress,
-          res.locals.requestedData
-        );
+        .updateProfile(res.locals.tokenInfo.email, res.locals.requestedData);
       res.send(
         functions.responseGenerator(
           updateProfileDetails.statusCode,
@@ -152,20 +74,51 @@ const controller = {
     }
   },
 
-  // Add profile picture
-  profilePic: async (req, res, next) => {
+  // Requester API
+  addRequester: async (req, res, next) => {
     try {
-      const profilePicDetails = await object
+      const requesterDetails = await object
         .userService()
-        .addProfilePic(
-          res.locals.tokenInfo.emailAddress,
-          res.locals.requestedData
-        );
+        .addRequester(res.locals.requestedData);
       res.send(
         functions.responseGenerator(
-          profilePicDetails.statusCode,
-          profilePicDetails.message,
-          profilePicDetails.data
+          requesterDetails.statusCode,
+          requesterDetails.message,
+          requesterDetails.data
+        )
+      );
+    } catch (error) {
+      return next(error);
+    }
+  },
+
+  // Requester API
+  getRequester: async (req, res, next) => {
+    try {
+      const requesterDetails = await object.userService().getRequester();
+      res.send(
+        functions.responseGenerator(
+          requesterDetails.statusCode,
+          requesterDetails.message,
+          requesterDetails.data
+        )
+      );
+    } catch (error) {
+      return next(error);
+    }
+  },
+
+  // Update Requester API
+  updateRequester: async (req, res, next) => {
+    try {
+      const updateRequesterDetails = await object
+        .userService()
+        .updateRequester(req.params.id);
+      res.send(
+        functions.responseGenerator(
+          updateRequesterDetails.statusCode,
+          updateRequesterDetails.message,
+          updateRequesterDetails.data
         )
       );
     } catch (error) {

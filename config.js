@@ -8,4 +8,5 @@ module.exports = {
   databaseName: process.env[`${process.env.NODE_ENV}_DB_NAME`],
   databaseInitial: process.env[`${process.env.NODE_ENV}_DB_INITIAL`],
   bodyEncryption: false,
+  tokenkey: 'uOUANxkK3O',
 };

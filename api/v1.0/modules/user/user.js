@@ -80,7 +80,7 @@ class UserService {
         };
       }
       const password = functions.decryptPassword(loginDetails[0].user_password);
-      if (password !== info.user_password) {
+      if (password !== info.userPassword) {
         throw {
           statusCode: statusCode.bad_request,
           message: message.invalidLoginDetails,
@@ -109,163 +109,6 @@ class UserService {
   }
 
   /**
-   * API to Change password
-   * @param {*} req (old password, token, new password )
-   * @param {*} res (json with success/failure)
-   */
-  async changePassword(emailAddress, info) {
-    try {
-      if (
-        validator.isEmpty(info.oldPassword) &&
-        validator.isEmpty(info.newPassword)
-      ) {
-        throw {
-          statusCode: statusCode.bad_request,
-          message: message.badRequest,
-          data: null,
-        };
-      }
-
-      const getPassword = await db.userDatabase().getPassword(emailAddress);
-
-      if (getPassword.length <= 0) {
-        throw {
-          statusCode: statusCode.bad_request,
-          message: message.invalidDetails,
-          data: null,
-        };
-      }
-
-      let password = functions.decryptPassword(getPassword[0].userPassword);
-      if (password !== info.oldPassword) {
-        throw {
-          statusCode: statusCode.bad_request,
-          message: message.invalidPassword,
-          data: null,
-        };
-      }
-
-      // Encrypt password for the user
-      password = functions.encryptPassword(info.newPassword);
-
-      const updatePasswordDetails = await db
-        .userDatabase()
-        .updateUserPassword(emailAddress, password);
-
-      return {
-        statusCode: statusCode.success,
-        message: message.passwordChanged,
-        data: updatePasswordDetails,
-      };
-    } catch (error) {
-      throw {
-        statusCode: error.statusCode,
-        message: error.message,
-        data: JSON.stringify(error),
-      };
-    }
-  }
-
-  /**
-   * API for Forgot Password
-   * @param {*} req (email address )
-   * @param {*} res (json with success/failure)
-   */
-  async forgotPassword(info) {
-    try {
-      if (!validator.isEmail(info.emailAddress)) {
-        throw {
-          statusCode: statusCode.bad_request,
-          message: message.invalidEmail,
-          data: null,
-        };
-      }
-      const userDetail = await db.userDatabase().getUser(info.emailAddress);
-
-      if (userDetail.length <= 0) {
-        throw {
-          statusCode: statusCode.bad_request,
-          message: message.invalidEmail,
-          data: null,
-        };
-      }
-      const to = userDetail[0].emailAddress;
-      let token = await functions.tokenEncrypt(to);
-      token = Buffer.from(token, 'ascii').toString('hex');
-      const subject = message.forgotPasswordSubject;
-      const link = config.resetPasswordLink + token;
-      let emailMessage = fs
-        .readFileSync('./common/emailtemplate/reset.html', 'utf8')
-        .toString();
-      emailMessage = emailMessage
-        .replace('$fullname', userDetail[0].fullName)
-        .replace('$link', link)
-        .replace('$emailId', config.supportEmail);
-
-      functions.sendEmail(to, subject, emailMessage);
-      return {
-        statusCode: statusCode.success,
-        message: message.resetLink,
-        data: null,
-      };
-    } catch (error) {
-      throw {
-        statusCode: error.statusCode,
-        message: error.message,
-        data: JSON.stringify(error),
-      };
-    }
-  }
-
-  /**
-   * API for Reset Password
-   * @param {*} req (emailAddress )
-   * @param {*} res (json with success/failure)
-   */
-  async resetPassword(info) {
-    try {
-      if (
-        validator.isEmpty(info.emailAddress) ||
-        validator.isEmpty(info.newPassword)
-      ) {
-        throw {
-          statusCode: statusCode.bad_request,
-          message: message.invalidDetails,
-          data: null,
-        };
-      }
-      const emailAddress = Buffer.from(info.emailAddress, 'hex').toString(
-        'ascii'
-      );
-      const emailAddressDetails = await functions.tokenDecrypt(emailAddress);
-      if (!emailAddressDetails.data) {
-        throw {
-          statusCode: statusCode.unauthorized,
-          message: message.emailLinkExpired,
-          data: null,
-        };
-      }
-      const password = functions.encryptPassword(info.newPassword);
-
-      const passwordDetails = await db
-        .userDatabase()
-        .updateUserPassword(emailAddressDetails.data, password);
-
-      return {
-        statusCode: statusCode.success,
-        message: message.passwordReset,
-        data: passwordDetails,
-      };
-    } catch (error) {
-      throw {
-        statusCode: error.statusCode,
-        message: error.message,
-        data: JSON.stringify(error),
-      };
-    }
-  }
-
-  /**
    * API for user history
    * @param {*} req (userId)
    * @param {*} res (json with success/failure)
@@ -274,15 +117,11 @@ class UserService {
     try {
       const getProfileDetails = await db.userDatabase().getUser(emailAdress);
       if (getProfileDetails.length > 0) {
-        const userDetails = {
-          fullName: getProfileDetails[0].fullName,
-          emailAddress: getProfileDetails[0].emailAddress,
-          mobileNumber: getProfileDetails[0].mobileNumber,
-        };
+        delete getProfileDetails[0].user_password;
         return {
           statusCode: statusCode.success,
           message: message.success,
-          data: userDetails,
+          data: getProfileDetails[0],
         };
       } else {
         return {
@@ -305,7 +144,7 @@ class UserService {
    * @param {*} req (token, user information )
    * @param {*} res (json with success/failure)
    */
-  async updateProfile(userId, info) {
+  async updateProfile(email, info) {
     try {
       if (validator.isEmpty(info.fullName)) {
         throw {
@@ -315,7 +154,7 @@ class UserService {
         };
       }
 
-      const userDetail = await db.userDatabase().updateUser(userId, info);
+      const userDetail = await db.userDatabase().updateUser(email, info);
 
       return {
         statusCode: statusCode.success,
@@ -332,48 +171,82 @@ class UserService {
   }
 
   /**
-   * API for uploading user profile pic
-   * @param {*} req (userId, base64 data)
+   * API for adding requester info
+   * @param {*} req (user details)
    * @param {*} res (json with success/failure)
    */
-  async addProfilePic(emailAddress, info) {
+  async addRequester(info) {
     try {
-      var imageType = info.imageInfo.name
-        ? info.imageInfo.name.split('.')[1]
-        : '';
-      if (!imageType) {
+      if (
+        validator.isEmail(info.fullName) ||
+        validator.isEmpty(info.bloodGroup) ||
+        validator.isEmpty(info.mobileNumber)
+      ) {
         throw {
-          statusCode: statusCode.unsupported_media_type,
-          message: message.invalidImage,
-          data: [],
+          statusCode: statusCode.bad_request,
+          message: message.badRequest,
+          data: null,
         };
       }
 
-      const imageName = `profile-${Date.now()}`;
-      const path = 'profile/';
-      const imageInformation = {
-        fileName: imageName,
-        base64: info.imageInfo.base64,
-        fileType: imageType,
-        pathInfo: path,
-      };
-      const imageURLInfo = await functions.uploadFile(imageInformation);
+      const addRequester = await db.userDatabase().addRequester(info);
 
-      const imageURL = path + imageURLInfo.fileName;
-
-      const addProfilePic = await db
-        .userDatabase()
-        .addProfilePic(emailAddress, imageURL);
       return {
         statusCode: statusCode.success,
         message: message.success,
-        data: addProfilePic,
+        data: addRequester,
       };
     } catch (error) {
       throw {
         statusCode: error.statusCode,
         message: error.message,
-        data: JSON.stringify(error),
+        data: JSON.stringify(error.data),
+      };
+    }
+  }
+
+  /**
+   * API for getting requester info
+   * @param {*} req ()
+   * @param {*} res (json with success/failure)
+   */
+  async getRequester(info) {
+    try {
+      const getRequester = await db.userDatabase().getRequester(info);
+      return {
+        statusCode: statusCode.success,
+        message: message.success,
+        data: getRequester,
+      };
+    } catch (error) {
+      throw {
+        statusCode: error.statusCode,
+        message: error.message,
+        data: JSON.stringify(error.data),
+      };
+    }
+  }
+
+  /**
+   * API for updating requester info
+   * @param {*} req ()
+   * @param {*} res (json with success/failure)
+   */
+  async updateRequester(requesterId) {
+    try {
+      const updateRequester = await db
+        .userDatabase()
+        .updateRequester(requesterId);
+      return {
+        statusCode: statusCode.success,
+        message: message.success,
+        data: updateRequester,
+      };
+    } catch (error) {
+      throw {
+        statusCode: error.statusCode,
+        message: error.message,
+        data: JSON.stringify(error.data),
       };
     }
   }
